@@ -1,4 +1,4 @@
-import { addCleanupEventListener, checkInputValidity, eraseError, writeError } from "./input";
+import { addCleanupEventListener, checkValidity, eraseError, writeError } from "./input";
 
 export function initializeForm(form: HTMLFormElement) {
   form.noValidate = true;
@@ -11,7 +11,7 @@ export function initializeForm(form: HTMLFormElement) {
       .filter((element) => !element.disabled)
       .filter((element) => !element.readOnly);
 
-    inputs.forEach((input) => checkInputValidity(input));
+    inputs.forEach((input) => checkValidity(input));
 
     const valid = inputs.every((input) => input.validity.valid);
 

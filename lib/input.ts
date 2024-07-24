@@ -1,28 +1,63 @@
 import { ValidationRegistry } from ".";
 
-class MissingValidatorError extends Error {
-  constructor(name: string) {
-    super(`Validator ${name} is not registered. Call registerValidator if this is a mistake.`);
-  }
-}
+export function checkValidity(input: HTMLInputElement) {
+  const attrs = Array.from(input.attributes);
 
-export function checkInputValidity(input: HTMLInputElement) {
-  for (const name of ValidationRegistry.potentialAttributes) {
-    if (!input.hasAttribute(name)) continue;
+  attrs.forEach((attr) => {
+    const validator = ValidationRegistry.validators.get(attr.name);
 
-    const [validator, message] = ValidationRegistry.get(name);
+    if (!validator) return;
 
-    if (!validator) throw new MissingValidatorError(name);
+    const valid = attr.value ? validator(input.value, attr.value) : validator(input.value);
 
-    const arg = input.getAttribute(name);
-
-    const isValid = arg === null ? validator(input.value) : validator(input.value, arg);
-
-    if (isValid) {
+    if (valid) {
       input.setCustomValidity("");
     } else {
-      input.setCustomValidity(input.getAttribute(`${name}-message`) || message || "This field is invalid.");
+      const message =
+        input.getAttribute(`${attr.name}-message`) ||
+        ValidationRegistry.messages.get(attr.name) ||
+        "This field is invalid";
+
+      input.setCustomValidity(message);
     }
+  });
+
+  if (!input.validity.valid) return checkHTML5Validity(input);
+}
+
+function checkHTML5Validity(input: HTMLInputElement) {
+  const validity = input.validity;
+
+  let type;
+
+  if (validity.valueMissing) {
+    type = "required";
+  } else if (validity.typeMismatch) {
+    type = "type";
+  } else if (validity.patternMismatch) {
+    type = "pattern";
+  } else if (validity.tooLong) {
+    type = "maxlength";
+  } else if (validity.tooShort) {
+    type = "minlength";
+  } else if (validity.rangeOverflow) {
+    type = "max";
+  } else if (validity.rangeUnderflow) {
+    type = "min";
+  }
+
+  if (!type) return;
+
+  if (input.hasAttribute(`${type}-message`)) {
+    input.setCustomValidity(input.getAttribute(`${type}-message`)!);
+
+    return;
+  }
+
+  if (ValidationRegistry.messages.get(type)) {
+    input.setCustomValidity(ValidationRegistry.messages.get(type)!);
+
+    return;
   }
 }
 
@@ -65,7 +100,7 @@ function cleanup(event: Event) {
 
   const input = event.target as HTMLInputElement;
 
-  checkInputValidity(input);
+  checkValidity(input);
 
   if (input.validity.valid) {
     eraseError(input);
