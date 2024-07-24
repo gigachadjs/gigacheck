@@ -8,7 +8,9 @@ export function checkValidity(input: HTMLInputElement) {
 
     if (!validator) continue;
 
-    const valid = attr.value ? validator(input.value, attr.value) : validator(input.value);
+    const valid = attr.value
+      ? validator(input.value, attr.value)
+      : validator(input.value);
 
     if (valid) {
       input.setCustomValidity("");
@@ -65,7 +67,7 @@ export function eraseError(input: HTMLInputElement) {
   if (Validation.removeError) {
     Validation.removeError(input);
   } else {
-    const id = `${input.id || idifyName(input.name)}-id`;
+    const id = `${input.id || idifyName(input.name)}-error`;
     const errorDiv = document.getElementById(id);
 
     if (Validation.inputClass) {
@@ -78,13 +80,17 @@ export function eraseError(input: HTMLInputElement) {
   input.removeEventListener("input", cleanup, true);
 }
 
-export function writeError(input: HTMLInputElement, message: string, invalid: string | undefined) {
+export function writeError(
+  input: HTMLInputElement,
+  message: string,
+  invalid: string | undefined
+) {
   input.setAttribute("invalid", invalid || "");
 
   if (Validation.renderError) {
     Validation.renderError(input, message);
   } else {
-    const id = `${input.id || idifyName(input.name)}-id`;
+    const id = `${input.id || idifyName(input.name)}-error`;
     const errorDiv = document.getElementById(id);
 
     if (errorDiv) {
@@ -135,13 +141,17 @@ function checkIndividualValidity(input: HTMLInputElement, name: string) {
   if (validator) {
     const attrValue = input.getAttribute(name);
 
-    const valid = attrValue ? validator(input.value, attrValue) : validator(input.value);
+    const valid = attrValue
+      ? validator(input.value, attrValue)
+      : validator(input.value);
 
     if (valid) {
       input.setCustomValidity("");
     } else {
       const message =
-        input.getAttribute(`${name}-message`) || ValidationRegistry.messages.get(name) || "This field is invalid";
+        input.getAttribute(`${name}-message`) ||
+        ValidationRegistry.messages.get(name) ||
+        "This field is invalid";
 
       input.setCustomValidity(message);
     }
