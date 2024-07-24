@@ -1,6 +1,10 @@
 import { Validation, ValidationRegistry } from ".";
 
 export function checkValidity(input: HTMLInputElement) {
+  input.setCustomValidity("");
+
+  if (isHTML5Invalid(input)) return checkHTML5Validity(input);
+
   const attrs = Array.from(input.attributes);
 
   for (const attr of attrs) {
@@ -12,9 +16,7 @@ export function checkValidity(input: HTMLInputElement) {
       ? validator(input.value, attr.value)
       : validator(input.value);
 
-    if (valid) {
-      input.setCustomValidity("");
-    } else {
+    if (!valid) {
       const message =
         input.getAttribute(`${attr.name}-message`) ||
         ValidationRegistry.messages.get(attr.name) ||
@@ -25,8 +27,20 @@ export function checkValidity(input: HTMLInputElement) {
       return attr.name;
     }
   }
+}
 
-  if (!input.validity.valid) return checkHTML5Validity(input);
+function isHTML5Invalid(input: HTMLInputElement) {
+  const validity = input.validity;
+
+  return (
+    validity.valueMissing ||
+    validity.typeMismatch ||
+    validity.patternMismatch ||
+    validity.tooLong ||
+    validity.tooShort ||
+    validity.rangeOverflow ||
+    validity.rangeUnderflow
+  );
 }
 
 function checkHTML5Validity(input: HTMLInputElement) {
@@ -136,6 +150,8 @@ function cleanup(event: Event) {
 }
 
 function checkIndividualValidity(input: HTMLInputElement, name: string) {
+  input.setCustomValidity("");
+
   const validator = ValidationRegistry.validators.get(name);
 
   if (validator) {
@@ -145,9 +161,7 @@ function checkIndividualValidity(input: HTMLInputElement, name: string) {
       ? validator(input.value, attrValue)
       : validator(input.value);
 
-    if (valid) {
-      input.setCustomValidity("");
-    } else {
+    if (!valid) {
       const message =
         input.getAttribute(`${name}-message`) ||
         ValidationRegistry.messages.get(name) ||
