@@ -11,21 +11,23 @@ export function initializeForm(form: HTMLFormElement) {
       .filter((element) => !element.disabled)
       .filter((element) => !element.readOnly);
 
-    inputs.forEach((input) => checkValidity(input));
-
-    const valid = inputs.every((input) => input.validity.valid);
-
     inputs.forEach((input) => {
+      const invalid = checkValidity(input);
+
+      console.log(invalid);
+
       const message = input.validationMessage;
 
-      if (message && message.length) {
-        writeError(input, message || "This field is invalid");
+      if (message) {
+        writeError(input, message, invalid);
 
         addCleanupEventListener(input);
       } else {
         eraseError(input);
       }
     });
+
+    const valid = inputs.every((input) => input.validity.valid);
 
     if (!valid) {
       event.preventDefault();

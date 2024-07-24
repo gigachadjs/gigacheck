@@ -1,12 +1,12 @@
-import { ValidationRegistry } from ".";
+import { Validation, ValidationRegistry } from ".";
 
 export function checkValidity(input: HTMLInputElement) {
   const attrs = Array.from(input.attributes);
 
-  attrs.forEach((attr) => {
+  for (const attr of attrs) {
     const validator = ValidationRegistry.validators.get(attr.name);
 
-    if (!validator) return;
+    if (!validator) continue;
 
     const valid = attr.value ? validator(input.value, attr.value) : validator(input.value);
 
@@ -19,8 +19,10 @@ export function checkValidity(input: HTMLInputElement) {
         "This field is invalid";
 
       input.setCustomValidity(message);
+
+      return attr.name;
     }
-  });
+  }
 
   if (!input.validity.valid) return checkHTML5Validity(input);
 }
@@ -50,45 +52,61 @@ function checkHTML5Validity(input: HTMLInputElement) {
 
   if (input.hasAttribute(`${type}-message`)) {
     input.setCustomValidity(input.getAttribute(`${type}-message`)!);
-
-    return;
-  }
-
-  if (ValidationRegistry.messages.get(type)) {
+  } else if (ValidationRegistry.messages.get(type)) {
     input.setCustomValidity(ValidationRegistry.messages.get(type)!);
-
-    return;
   }
+
+  return type;
 }
 
 export function eraseError(input: HTMLInputElement) {
   input.removeAttribute("invalid");
 
-  const id = `${input.id || idifyName(input.name)}-id`;
-  const errorDiv = document.getElementById(id);
+  if (Validation.removeError) {
+    Validation.removeError(input);
+  } else {
+    const id = `${input.id || idifyName(input.name)}-id`;
+    const errorDiv = document.getElementById(id);
 
-  errorDiv?.remove();
+    if (Validation.inputClass) {
+      input.classList.remove(Validation.inputClass);
+    }
+
+    errorDiv?.remove();
+  }
 
   input.removeEventListener("input", cleanup, true);
 }
 
-export function writeError(input: HTMLInputElement, message: string) {
-  input.setAttribute("invalid", "");
+export function writeError(input: HTMLInputElement, message: string, invalid: string | undefined) {
+  input.setAttribute("invalid", invalid || "");
 
-  const id = `${input.id || idifyName(input.name)}-id`;
-  const errorDiv = document.getElementById(id);
+  if (Validation.renderError) {
+    Validation.renderError(input, message);
+  } else {
+    const id = `${input.id || idifyName(input.name)}-id`;
+    const errorDiv = document.getElementById(id);
 
-  if (errorDiv) {
-    errorDiv.innerText = message;
+    if (errorDiv) {
+      errorDiv.innerText = message;
 
-    return;
+      return;
+    }
+
+    const span = document.createElement("span");
+    span.innerText = message;
+    span.id = id;
+
+    if (Validation.errorClass) {
+      span.classList.add(Validation.errorClass);
+    }
+
+    if (Validation.inputClass) {
+      input.classList.add(Validation.inputClass);
+    }
+
+    input.insertAdjacentElement("afterend", span);
   }
-
-  const span = document.createElement("span");
-  span.innerText = message;
-  span.id = id;
-
-  input.insertAdjacentElement("afterend", span);
 }
 
 export function addCleanupEventListener(input: HTMLInputElement) {
@@ -100,13 +118,70 @@ function cleanup(event: Event) {
 
   const input = event.target as HTMLInputElement;
 
-  checkValidity(input);
+  const invalidType = input.getAttribute("invalid");
 
-  if (input.validity.valid) {
+  if (!invalidType) return;
+
+  if (checkIndividualValidity(input, invalidType)) {
     eraseError(input);
   } else {
-    writeError(input, input.validationMessage || "This field is invalid.");
+    writeError(input, input.validationMessage, invalidType);
   }
+}
+
+function checkIndividualValidity(input: HTMLInputElement, name: string) {
+  const validator = ValidationRegistry.validators.get(name);
+
+  if (validator) {
+    const attrValue = input.getAttribute(name);
+
+    const valid = attrValue ? validator(input.value, attrValue) : validator(input.value);
+
+    if (valid) {
+      input.setCustomValidity("");
+    } else {
+      const message =
+        input.getAttribute(`${name}-message`) || ValidationRegistry.messages.get(name) || "This field is invalid";
+
+      input.setCustomValidity(message);
+    }
+
+    return valid;
+  } else {
+    return checkIndividualHTML5Validity(input, name);
+  }
+}
+
+const VALIDITY_METHOD_MAP = {
+  required: "valueMissing",
+  type: "typeMismatch",
+  pattern: "patternMismatch",
+  maxlength: "tooLong",
+  minlength: "tooShort",
+  max: "rangeOverflow",
+  min: "rangeUnderflow",
+};
+
+function checkIndividualHTML5Validity(input: HTMLInputElement, name: string) {
+  if (!Object.keys(VALIDITY_METHOD_MAP).includes(name)) return;
+
+  const key = name as keyof typeof VALIDITY_METHOD_MAP;
+
+  const validity = input.validity;
+
+  const method = VALIDITY_METHOD_MAP[key];
+
+  const valid = !validity[method as keyof typeof validity];
+
+  if (valid) {
+    if (input.hasAttribute(`${name}-message`)) {
+      input.setCustomValidity(input.getAttribute(`${name}-message`)!);
+    } else if (ValidationRegistry.messages.get(name)) {
+      input.setCustomValidity(ValidationRegistry.messages.get(name)!);
+    }
+  }
+
+  return valid;
 }
 
 function idifyName(name: string) {
