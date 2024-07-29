@@ -12,15 +12,12 @@ export function checkValidity(input: HTMLInputElement) {
 
     if (!validator) continue;
 
-    const valid = attr.value
-      ? validator(input.value, attr.value)
-      : validator(input.value);
+    const valid = attr.value ? validator(input.value, attr.value) : validator(input.value);
 
-    if (!valid) {
-      const message =
-        input.getAttribute(`${attr.name}-message`) ||
-        ValidationRegistry.messages.get(attr.name) ||
-        "This field is invalid";
+    if (valid) {
+      input.setCustomValidity("");
+    } else {
+      const message = fetchMessage(input, attr.name);
 
       input.setCustomValidity(message);
 
@@ -69,7 +66,14 @@ function checkHTML5Validity(input: HTMLInputElement) {
   if (input.hasAttribute(`${type}-message`)) {
     input.setCustomValidity(input.getAttribute(`${type}-message`)!);
   } else if (ValidationRegistry.messages.get(type)) {
-    input.setCustomValidity(ValidationRegistry.messages.get(type)!);
+    const maybeMessage = ValidationRegistry.messages.get(type);
+    let message = maybeMessage;
+
+    if (typeof maybeMessage === "function") {
+      message = maybeMessage(input.value, type);
+    }
+
+    input.setCustomValidity(message as string);
   }
 
   return type;
@@ -94,11 +98,7 @@ export function eraseError(input: HTMLInputElement) {
   input.removeEventListener("input", cleanup, true);
 }
 
-export function writeError(
-  input: HTMLInputElement,
-  message: string,
-  invalid: string | undefined
-) {
+export function writeError(input: HTMLInputElement, message: string, invalid: string | undefined) {
   input.setAttribute("invalid", invalid || "");
 
   if (Validation.renderError) {
@@ -157,15 +157,12 @@ function checkIndividualValidity(input: HTMLInputElement, name: string) {
   if (validator) {
     const attrValue = input.getAttribute(name);
 
-    const valid = attrValue
-      ? validator(input.value, attrValue)
-      : validator(input.value);
+    const valid = attrValue ? validator(input.value, attrValue) : validator(input.value);
 
-    if (!valid) {
-      const message =
-        input.getAttribute(`${name}-message`) ||
-        ValidationRegistry.messages.get(name) ||
-        "This field is invalid";
+    if (valid) {
+      input.setCustomValidity("");
+    } else {
+      const message = fetchMessage(input, name);
 
       input.setCustomValidity(message);
     }
@@ -201,11 +198,29 @@ function checkIndividualHTML5Validity(input: HTMLInputElement, name: string) {
     if (input.hasAttribute(`${name}-message`)) {
       input.setCustomValidity(input.getAttribute(`${name}-message`)!);
     } else if (ValidationRegistry.messages.get(name)) {
-      input.setCustomValidity(ValidationRegistry.messages.get(name)!);
+      const maybeMessage = ValidationRegistry.messages.get(name);
+      let message = maybeMessage;
+
+      if (typeof maybeMessage === "function") {
+        message = maybeMessage(input.value, name);
+      }
+
+      input.setCustomValidity(message as string);
     }
   }
 
   return valid;
+}
+
+function fetchMessage(input: HTMLInputElement, name: string) {
+  const maybeMessage = ValidationRegistry.messages.get(name);
+  let message = maybeMessage;
+
+  if (typeof maybeMessage === "function") {
+    message = maybeMessage(input.value, name);
+  }
+
+  return input.getAttribute(`${name}-message`) || (message as string | undefined) || "This field is invalid";
 }
 
 function idifyName(name: string) {

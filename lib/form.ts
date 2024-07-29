@@ -14,8 +14,6 @@ export function initializeForm(form: HTMLFormElement) {
     inputs.forEach((input) => {
       const invalid = checkValidity(input);
 
-      console.log(invalid);
-
       const message = input.validationMessage;
 
       if (message) {

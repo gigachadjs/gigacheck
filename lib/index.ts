@@ -1,10 +1,11 @@
 export type Validator = (value: string, arg?: string) => boolean;
+export type Message = string | ((value: string, field: string) => string) | undefined;
 
 export class ValidationRegistry {
   static validators: Map<string, Validator> = new Map();
-  static messages: Map<string, string | undefined> = new Map();
+  static messages: Map<string, Message> = new Map();
 
-  static get(name: string): [Validator | undefined, string | undefined] {
+  static get(name: string): [Validator | undefined, Message] {
     return [this.validators.get(name), this.messages.get(name)];
   }
 
